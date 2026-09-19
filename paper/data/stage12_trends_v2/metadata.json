@@ -1,0 +1,513 @@
+{
+  "design": "finite-horizon zero-shot scalar sweeps with matched seeds",
+  "source_dataset": "paper/data/stage12_trends",
+  "episodes_per_method_point": 24,
+  "num_envs": 12,
+  "base_seed": 41000,
+  "device": "cuda",
+  "methods": [
+    "expected_info_gain",
+    "flat_lstm",
+    "pointer_lstm"
+  ],
+  "sweeps": {
+    "catalogue_size": {
+      "label": "Catalogue size",
+      "x_label": "Number of RSOs",
+      "points": [
+        {
+          "value": 30.0,
+          "label": "30",
+          "overrides": {},
+          "is_id": true
+        },
+        {
+          "value": 45.0,
+          "label": "45",
+          "overrides": {
+            "num_rso": 45,
+            "fixed_rso_slots": 0
+          },
+          "is_id": false
+        },
+        {
+          "value": 60.0,
+          "label": "60",
+          "overrides": {
+            "num_rso": 60,
+            "fixed_rso_slots": 0
+          },
+          "is_id": false
+        },
+        {
+          "value": 75.0,
+          "label": "75",
+          "overrides": {
+            "num_rso": 75,
+            "fixed_rso_slots": 0
+          },
+          "is_id": false
+        },
+        {
+          "value": 90.0,
+          "label": "90",
+          "overrides": {
+            "num_rso": 90,
+            "fixed_rso_slots": 0
+          },
+          "is_id": false
+        },
+        {
+          "value": 105.0,
+          "label": "105",
+          "overrides": {
+            "num_rso": 105,
+            "fixed_rso_slots": 0
+          },
+          "is_id": false
+        },
+        {
+          "value": 120.0,
+          "label": "120",
+          "overrides": {
+            "num_rso": 120,
+            "fixed_rso_slots": 0
+          },
+          "is_id": false
+        }
+      ]
+    },
+    "inclination_shift": {
+      "label": "Inclination shift",
+      "x_label": "Shift of training band (deg)",
+      "points": [
+        {
+          "value": -30.0,
+          "label": "5-55",
+          "overrides": {
+            "rso_inc_min": 5.0,
+            "rso_inc_max": 55.0
+          },
+          "is_id": false
+        },
+        {
+          "value": -20.0,
+          "label": "15-65",
+          "overrides": {
+            "rso_inc_min": 15.0,
+            "rso_inc_max": 65.0
+          },
+          "is_id": false
+        },
+        {
+          "value": -10.0,
+          "label": "25-75",
+          "overrides": {
+            "rso_inc_min": 25.0,
+            "rso_inc_max": 75.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 0.0,
+          "label": "35-85",
+          "overrides": {
+            "rso_inc_min": 35.0,
+            "rso_inc_max": 85.0
+          },
+          "is_id": true
+        },
+        {
+          "value": 10.0,
+          "label": "45-95",
+          "overrides": {
+            "rso_inc_min": 45.0,
+            "rso_inc_max": 95.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 20.0,
+          "label": "55-105",
+          "overrides": {
+            "rso_inc_min": 55.0,
+            "rso_inc_max": 105.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 30.0,
+          "label": "65-115",
+          "overrides": {
+            "rso_inc_min": 65.0,
+            "rso_inc_max": 115.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 40.0,
+          "label": "75-125",
+          "overrides": {
+            "rso_inc_min": 75.0,
+            "rso_inc_max": 125.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 50.0,
+          "label": "85-135",
+          "overrides": {
+            "rso_inc_min": 85.0,
+            "rso_inc_max": 135.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 60.0,
+          "label": "95-145",
+          "overrides": {
+            "rso_inc_min": 95.0,
+            "rso_inc_max": 145.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 70.0,
+          "label": "105-155",
+          "overrides": {
+            "rso_inc_min": 105.0,
+            "rso_inc_max": 155.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 80.0,
+          "label": "115-165",
+          "overrides": {
+            "rso_inc_min": 115.0,
+            "rso_inc_max": 165.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 90.0,
+          "label": "125-175",
+          "overrides": {
+            "rso_inc_min": 125.0,
+            "rso_inc_max": 175.0
+          },
+          "is_id": false
+        }
+      ]
+    },
+    "eccentricity": {
+      "label": "Eccentricity",
+      "x_label": "Maximum eccentricity",
+      "points": [
+        {
+          "value": 0.005,
+          "label": "0.005",
+          "overrides": {
+            "rso_e_min": 0.0,
+            "rso_e_max": 0.005
+          },
+          "is_id": true
+        },
+        {
+          "value": 0.01,
+          "label": "0.010",
+          "overrides": {
+            "rso_e_min": 0.0,
+            "rso_e_max": 0.01
+          },
+          "is_id": false
+        },
+        {
+          "value": 0.02,
+          "label": "0.020",
+          "overrides": {
+            "rso_e_min": 0.0,
+            "rso_e_max": 0.02
+          },
+          "is_id": false
+        },
+        {
+          "value": 0.03,
+          "label": "0.030",
+          "overrides": {
+            "rso_e_min": 0.0,
+            "rso_e_max": 0.03
+          },
+          "is_id": false
+        },
+        {
+          "value": 0.04,
+          "label": "0.040",
+          "overrides": {
+            "rso_e_min": 0.0,
+            "rso_e_max": 0.04
+          },
+          "is_id": false
+        },
+        {
+          "value": 0.05,
+          "label": "0.050",
+          "overrides": {
+            "rso_e_min": 0.0,
+            "rso_e_max": 0.05
+          },
+          "is_id": false
+        },
+        {
+          "value": 0.055,
+          "label": "0.055",
+          "overrides": {
+            "rso_e_min": 0.0,
+            "rso_e_max": 0.055
+          },
+          "is_id": false
+        }
+      ]
+    },
+    "initial_uncertainty": {
+      "label": "Initial uncertainty",
+      "x_label": "Initial uncertainty scale",
+      "points": [
+        {
+          "value": 0.5,
+          "label": "0.5x",
+          "overrides": {
+            "u_init_r": 0.5,
+            "u_init_t": 1.5,
+            "u_init_n": 0.5,
+            "u_init_r_max": 1.0,
+            "u_init_t_max": 3.0,
+            "u_init_n_max": 1.0,
+            "sigma_vel_init": 0.0005,
+            "sigma_vel_init_max": 0.001
+          },
+          "is_id": false
+        },
+        {
+          "value": 1.0,
+          "label": "1x",
+          "overrides": {
+            "u_init_r": 1.0,
+            "u_init_t": 3.0,
+            "u_init_n": 1.0,
+            "u_init_r_max": 2.0,
+            "u_init_t_max": 6.0,
+            "u_init_n_max": 2.0,
+            "sigma_vel_init": 0.001,
+            "sigma_vel_init_max": 0.002
+          },
+          "is_id": true
+        },
+        {
+          "value": 1.5,
+          "label": "1.5x",
+          "overrides": {
+            "u_init_r": 1.5,
+            "u_init_t": 4.5,
+            "u_init_n": 1.5,
+            "u_init_r_max": 3.0,
+            "u_init_t_max": 9.0,
+            "u_init_n_max": 3.0,
+            "sigma_vel_init": 0.0015,
+            "sigma_vel_init_max": 0.003
+          },
+          "is_id": false
+        },
+        {
+          "value": 2.0,
+          "label": "2x",
+          "overrides": {
+            "u_init_r": 2.0,
+            "u_init_t": 6.0,
+            "u_init_n": 2.0,
+            "u_init_r_max": 4.0,
+            "u_init_t_max": 12.0,
+            "u_init_n_max": 4.0,
+            "sigma_vel_init": 0.002,
+            "sigma_vel_init_max": 0.004
+          },
+          "is_id": false
+        },
+        {
+          "value": 3.0,
+          "label": "3x",
+          "overrides": {
+            "u_init_r": 3.0,
+            "u_init_t": 9.0,
+            "u_init_n": 3.0,
+            "u_init_r_max": 6.0,
+            "u_init_t_max": 18.0,
+            "u_init_n_max": 6.0,
+            "sigma_vel_init": 0.003,
+            "sigma_vel_init_max": 0.006
+          },
+          "is_id": false
+        },
+        {
+          "value": 4.0,
+          "label": "4x",
+          "overrides": {
+            "u_init_r": 4.0,
+            "u_init_t": 12.0,
+            "u_init_n": 4.0,
+            "u_init_r_max": 8.0,
+            "u_init_t_max": 24.0,
+            "u_init_n_max": 8.0,
+            "sigma_vel_init": 0.004,
+            "sigma_vel_init_max": 0.008
+          },
+          "is_id": false
+        }
+      ]
+    },
+    "measurement_noise": {
+      "label": "Measurement noise",
+      "x_label": "Measurement noise (m)",
+      "points": [
+        {
+          "value": 25.0,
+          "label": "25",
+          "overrides": {
+            "ekf_meas_sigma": 0.025
+          },
+          "is_id": false
+        },
+        {
+          "value": 50.0,
+          "label": "50",
+          "overrides": {
+            "ekf_meas_sigma": 0.05
+          },
+          "is_id": true
+        },
+        {
+          "value": 60.0,
+          "label": "60",
+          "overrides": {
+            "ekf_meas_sigma": 0.06
+          },
+          "is_id": false
+        },
+        {
+          "value": 70.0,
+          "label": "70",
+          "overrides": {
+            "ekf_meas_sigma": 0.07
+          },
+          "is_id": false
+        },
+        {
+          "value": 80.0,
+          "label": "80",
+          "overrides": {
+            "ekf_meas_sigma": 0.08
+          },
+          "is_id": false
+        },
+        {
+          "value": 90.0,
+          "label": "90",
+          "overrides": {
+            "ekf_meas_sigma": 0.09
+          },
+          "is_id": false
+        },
+        {
+          "value": 100.0,
+          "label": "100",
+          "overrides": {
+            "ekf_meas_sigma": 0.1
+          },
+          "is_id": false
+        },
+        {
+          "value": 150.0,
+          "label": "150",
+          "overrides": {
+            "ekf_meas_sigma": 0.15
+          },
+          "is_id": false
+        },
+        {
+          "value": 200.0,
+          "label": "200",
+          "overrides": {
+            "ekf_meas_sigma": 0.2
+          },
+          "is_id": false
+        }
+      ]
+    },
+    "sensor_degradation": {
+      "label": "Sensor degradation",
+      "x_label": "Degradation severity (%)",
+      "points": [
+        {
+          "value": 0.0,
+          "label": "0",
+          "overrides": {
+            "fov_deg": 6.0,
+            "max_slew_rate_deg": 0.5,
+            "max_obs_range": 3000.0
+          },
+          "is_id": true
+        },
+        {
+          "value": 20.0,
+          "label": "20",
+          "overrides": {
+            "fov_deg": 5.4,
+            "max_slew_rate_deg": 0.45,
+            "max_obs_range": 2800.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 40.0,
+          "label": "40",
+          "overrides": {
+            "fov_deg": 4.8,
+            "max_slew_rate_deg": 0.4,
+            "max_obs_range": 2600.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 60.0,
+          "label": "60",
+          "overrides": {
+            "fov_deg": 4.2,
+            "max_slew_rate_deg": 0.35,
+            "max_obs_range": 2400.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 80.0,
+          "label": "80",
+          "overrides": {
+            "fov_deg": 3.5999999999999996,
+            "max_slew_rate_deg": 0.3,
+            "max_obs_range": 2200.0
+          },
+          "is_id": false
+        },
+        {
+          "value": 100.0,
+          "label": "100",
+          "overrides": {
+            "fov_deg": 3.0,
+            "max_slew_rate_deg": 0.25,
+            "max_obs_range": 2000.0
+          },
+          "is_id": false
+        }
+      ]
+    }
+  }
+}

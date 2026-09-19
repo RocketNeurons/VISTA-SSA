@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel", "numpy>=1.26,<2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vista-ssa"
+version = "0.1.0"
+description = "VISTA: entity attention, recurrent memory, and pointer selection for SSA sensor tasking"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = {text = "MIT"}
+authors = [{name = "Miguel Leiva-Velez and VISTA contributors"}]
+dependencies = ["numpy>=1.26,<2", "torch>=2.4,<3", "gymnasium>=0.29,<2", "pufferlib==3.0.0"]
+
+[project.optional-dependencies]
+plots = ["matplotlib>=3.8,<3.11", "pandas>=2.2,<3", "scipy>=1.12,<1.17", "scikit-learn>=1.4,<1.8", "pillow>=10"]
+sweep = ["wandb==0.19.11"]
+dev = ["pytest>=8", "build"]
+
+[project.scripts]
+vista = "vista.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["vista*"]
+
+[tool.setuptools.package-data]
+"vista.envs" = ["*.h"]
+"vista.envs.phase1" = ["*.c", "*.h"]
+"vista.envs.phase2" = ["*.c", "*.h"]
+"vista.envs.phase3" = ["*.c", "*.h"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

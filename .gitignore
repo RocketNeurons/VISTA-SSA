@@ -1,0 +1,29 @@
+# Byte-compiled / build artifacts
+__pycache__/
+*.py[cod]
+*.so
+build/
+dist/
+*.egg-info/
+
+# Fetched build dependencies (recreate with scripts/fetch_build_dependencies.py)
+.build_deps/
+
+# PufferLib runtime symlink (created automatically on import)
+resources
+
+# Virtual environments
+.venv/
+venv/
+
+# Run outputs
+runs/
+experiments/
+wandb/
+*.gif
+!assets/*.gif
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

@@ -1,0 +1,26 @@
+{
+  "checkpoint": "/home/mleivav/deep_rl/swarming_2026/PufferLib/experiments/LEO_LEO_Baseline/benchmark_k60_trained_178593386272/model_puffer_orbital_eyes_k60_trained_001357.pt",
+  "config": "/home/mleivav/deep_rl/swarming_2026/PufferLib/experiments/LEO_LEO_Baseline/benchmark_k60_trained_178593386272/inference_k60.ini",
+  "episodes": 4,
+  "num_envs": 2,
+  "steps": 3600,
+  "dt_seconds": 5.0,
+  "horizon_hours": 5.0,
+  "sample_every_steps": 30,
+  "target_mean_uncertainty_km": 1.0,
+  "required_episode_fraction": 0.8,
+  "grid": {
+    "2000": [
+      9
+    ],
+    "20000": [
+      48
+    ]
+  },
+  "policy_training_condition": {
+    "num_rso": 2000,
+    "num_sensors": 12,
+    "top_k": 60
+  },
+  "interpretation": "Empirical frozen-policy capacity, not a universal physical law."
+}

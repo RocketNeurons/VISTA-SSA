@@ -1,0 +1,31 @@
+{
+  "checkpoint": "/home/mleivav/deep_rl/swarming_2026/PufferLib-phase3/experiments/puffer_orbital_eyes_cooperative_attention_krt58tq3/model_puffer_orbital_eyes_cooperative_attention_000250.pt",
+  "episodes": 12,
+  "steps": 3600,
+  "dt_seconds": 5.0,
+  "seed": 42,
+  "conditions": [
+    "correct",
+    "swapped",
+    "neutral"
+  ],
+  "counterfactuals": {
+    "swapped": "Physical sensor responses fixed; all ego and teammate modality labels exchanged.",
+    "neutral": "Physical sensor responses fixed; every modality lookup replaced by the mean learned embedding."
+  },
+  "representation": {
+    "sampling_interval_steps": 120,
+    "umap": {
+      "n_neighbors": 30,
+      "min_dist": 0.12,
+      "metric": "cosine",
+      "seed": 42
+    },
+    "attention": "First transformer layer, ego query, per-head pre-residual self-attention."
+  },
+  "notes": [
+    "All conditions use paired environment seeds and policy-sampling seeds.",
+    "The hidden range-response law is never exposed in the RSO observation.",
+    "UMAP and attention associations are exploratory; the label interventions provide the functional test."
+  ]
+}

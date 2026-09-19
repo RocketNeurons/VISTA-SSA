@@ -1,0 +1,48 @@
+{
+  "config": "experiments/LEO_LEO_Baseline/benchmark_k60_trained_178593386272/inference_k60.ini",
+  "config_sha256": "db18a8ded07639d8c25e8eefc28478044df8805d0692c2ff4ab455b15c2d7973",
+  "sizes": [
+    2000,
+    3000,
+    4000,
+    5000
+  ],
+  "episodes_per_size": 48,
+  "num_envs": 12,
+  "base_seed": 52000,
+  "steps": 3600,
+  "dt_seconds": 5.0,
+  "top_k": 60,
+  "scheduler": "top-K marginal-sigma EIG; Earth/range feasible; quality=1",
+  "diagnostics": [
+    {
+      "num_rso": 2000,
+      "off_fov_selections": 2066272,
+      "sensor_decisions": 2073600,
+      "off_fov_fraction": 0.9964660493827161,
+      "empty_feasible_sets": 0
+    },
+    {
+      "num_rso": 3000,
+      "off_fov_selections": 2066191,
+      "sensor_decisions": 2073600,
+      "off_fov_fraction": 0.996426986882716,
+      "empty_feasible_sets": 0
+    },
+    {
+      "num_rso": 4000,
+      "off_fov_selections": 2066303,
+      "sensor_decisions": 2073600,
+      "off_fov_fraction": 0.9964809992283951,
+      "empty_feasible_sets": 0
+    },
+    {
+      "num_rso": 5000,
+      "off_fov_selections": 2066278,
+      "sensor_decisions": 2073600,
+      "off_fov_fraction": 0.9964689429012346,
+      "empty_feasible_sets": 0
+    }
+  ],
+  "original_results_modified": false
+}

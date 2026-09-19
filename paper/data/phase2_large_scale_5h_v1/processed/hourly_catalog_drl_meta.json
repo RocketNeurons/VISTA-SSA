@@ -1,0 +1,23 @@
+{
+  "checkpoint": "experiments/LEO_LEO_Baseline/benchmark_k60_trained_178593386272/model_puffer_orbital_eyes_k60_trained_001357.pt",
+  "checkpoint_sha256": "1f3b522b7640f79013b994f7f3d183884728b582f2090456597c6d4b543f9290",
+  "config": "experiments/LEO_LEO_Baseline/benchmark_k60_trained_178593386272/inference_k60.ini",
+  "episodes": 48,
+  "num_envs": 12,
+  "num_rso": 2000,
+  "rso_top_k": 60,
+  "base_seed": 52000,
+  "dt": 5.0,
+  "max_steps": 3600,
+  "snapshot_hours": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "rows": 576000,
+  "device": "cuda",
+  "terminal_capture": "Pre-reset state immediately before terminal transition, matching the paired benchmark final_dist.csv."
+}

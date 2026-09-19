@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use VISTA in your research, please cite it as below."
+title: "VISTA: An Attention-Based Multi-Agent Reinforcement Learning Architecture for Space Situational Awareness Sensor Tasking"
+authors:
+  - family-names: "Leiva-Velez"
+    given-names: "Miguel"
+type: software
+license: MIT
+version: 0.1.0
+date-released: 2026-09-19

@@ -1,0 +1,47 @@
+{
+  "phase1_vista": {
+    "checkpoint": "checkpoints/phase1_vista.pt",
+    "config": "configs/phase1_vista.ini",
+    "source_checkpoint_name": "model_puffer_orbital_eyes_fixed_single_sensor_calibrated_v1_attention_000500.pt",
+    "source_run": "pointer_fixed_single_sensor_phase12",
+    "sha256": "c24b334525d71da6587931e9fc5de08e510042e818b40d2b43780333899abf16",
+    "bytes": 228157,
+    "config_provenance": "Frozen evaluation config"
+  },
+  "phase1_lstm": {
+    "checkpoint": "checkpoints/phase1_lstm.pt",
+    "config": "configs/phase1_lstm.ini",
+    "source_checkpoint_name": "model_puffer_orbital_eyes_fixed_single_sensor_calibrated_v1_000625.pt",
+    "source_run": "lstm_fixed_single_sensor_calibrated_v1",
+    "sha256": "275fd3c79fc8ca92e489a9e5d8b5816b4c69f1b16aa4130bcd641e54e2002598",
+    "bytes": 10721214,
+    "config_provenance": "Frozen evaluation config"
+  },
+  "phase2_vista": {
+    "checkpoint": "checkpoints/phase2_vista.pt",
+    "config": "configs/phase2_vista.ini",
+    "source_checkpoint_name": "model_puffer_orbital_eyes_k60_trained_001357.pt",
+    "source_run": "benchmark_k60_trained_178593386272",
+    "sha256": "1f3b522b7640f79013b994f7f3d183884728b582f2090456597c6d4b543f9290",
+    "bytes": 407073,
+    "config_provenance": "Frozen evaluation config"
+  },
+  "phase2_lstm": {
+    "checkpoint": "checkpoints/phase2_lstm.pt",
+    "config": "configs/phase2_lstm.ini",
+    "source_checkpoint_name": "model_puffer_orbital_eyes_lstm_000679.pt",
+    "source_run": "puffer_orbital_eyes_lstm_12",
+    "sha256": "8403ba3a46702836cb5162b069ce313fbbe0c858c1d099b23ff85bb0b45fb66a",
+    "bytes": 12105163,
+    "config_provenance": "Repository config at release; training-run metadata audit in docs/REPRODUCIBILITY.md"
+  },
+  "phase3_vista": {
+    "checkpoint": "checkpoints/phase3_vista.pt",
+    "config": "configs/phase3_vista.ini",
+    "source_checkpoint_name": "model_puffer_orbital_eyes_cooperative_attention_000250.pt",
+    "source_run": "puffer_orbital_eyes_cooperative_attention_krt58tq3",
+    "sha256": "c0ac33a7d9c2e2e66958553f68b53a73c5df1270b4a55b32e96a4e5dd26aeb2c",
+    "bytes": 411985,
+    "config_provenance": "Repository config at release; training-run metadata audit in docs/REPRODUCIBILITY.md"
+  }
+}
