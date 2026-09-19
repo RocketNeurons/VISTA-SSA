@@ -2,7 +2,7 @@
 import importlib
 import sys
 import types
-from . import policies, cooperative_policy
+from . import vista_policy, cooperative_policy
 
 
 def components(phase):
@@ -23,8 +23,9 @@ def register():
     plugin.env_creator = env_creator
     plugin.torch = types.SimpleNamespace(**{
         name: getattr(module, name)
-        for module in (policies, cooperative_policy)
-        for name in dir(module) if name.startswith('OrbitalEyes')
+        for module in (vista_policy, cooperative_policy)
+        for name in dir(module)
+        if name.startswith('OrbitalEyes') or name.startswith('VISTA')
     })
     sys.modules[plugin.__name__] = plugin
 

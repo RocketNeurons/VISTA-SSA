@@ -15,9 +15,6 @@ environments, frozen pretrained checkpoints, classical scheduling baselines,
 and the data + scripts behind the paper figures. Everything runs through a
 single `vista` command on top of the public [PufferLib](https://github.com/PufferAI/PufferLib) 3.0 trainer.
 
-> VISTA is the first public iteration of this line of work. Its successor,
-> **SkyGym**, is under development and will supersede this repository.
-
 ## Architecture
 
 ![VISTA architecture: entity encoding, typed tokens, relational contextualization, temporal state integration, pointer scoring, and masked action selection](assets/vista_architecture.png)
@@ -46,7 +43,7 @@ and `git`. GPU is optional (evaluation runs fine on CPU; training is much
 faster on CUDA).
 
 ```bash
-git clone <this-repo> && cd VISTA-public
+git clone https://github.com/RocketNeurons/VISTA-SSA.git && cd VISTA-SSA
 
 # 1. Create and activate a virtual environment
 python3.12 -m venv .venv
@@ -198,13 +195,5 @@ licenses/         Third-party licenses (PufferLib MIT, Raylib zlib)
 
 Released under the [MIT License](LICENSE). Third-party licenses are in
 [licenses/](licenses). If you use VISTA in your research, please cite it
-([CITATION.cff](CITATION.cff)).
-
-## Citing the paper
-
-The VISTA paper is currently under submission. The reference will be added
-here once available:
-
-```bibtex
-% Citation coming soon.
-```
+([CITATION.cff](CITATION.cff)). The VISTA paper is currently under submission;
+the reference will be added here once available.

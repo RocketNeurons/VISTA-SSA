@@ -90,49 +90,14 @@ class OrbitalEyesFlatPolicy(nn.Module):
         values = self.value(hidden)
         return logits, values
 
-class OrbitalEyesGraphAttentionLSTM(pufferlib.models.LSTMWrapper):
-    """LSTMWrapper around OrbitalEyesGraphAttention.
+class VISTALSTM(pufferlib.models.LSTMWrapper):
+    """LSTMWrapper around VISTA.
     input_size must match the inner policy's hidden_size."""
     def __init__(self, env, policy, input_size=128, hidden_size=128):
         super().__init__(env, policy, input_size, hidden_size)
 
-class TanhNormal(torch.distributions.Normal):
-    """Normal distribution with tanh squashing and log-prob correction.
-
-    Samples are squashed to (-1, 1) via tanh. log_prob and entropy are
-    corrected for the change of variables.  Inherits from Normal so that
-    isinstance(dist, torch.distributions.Normal) returns True, which is
-    required by PufferLib's sample_logits.
-    """
-
-    def sample(self, sample_shape=torch.Size()):
-        raw = super().rsample(sample_shape)  # use rsample for gradients
-        return torch.tanh(raw)
-
-    def rsample(self, sample_shape=torch.Size()):
-        raw = super().rsample(sample_shape)
-        return torch.tanh(raw)
-
-    def log_prob(self, value):
-        # Inverse tanh (atanh) to recover raw value
-        # Clamp to avoid atanh(±1) = ±inf
-        eps = 1e-6
-        raw = torch.atanh(value.clamp(-1 + eps, 1 - eps))
-        # Normal log-prob on raw + Jacobian correction
-        lp = super().log_prob(raw)
-        # d/dx tanh(x) = 1 - tanh²(x), so log |det J| = log(1 - tanh²(x))
-        lp = lp - torch.log(1 - value.pow(2) + eps)
-        return lp
-
-    def entropy(self):
-        # Approximate: base Normal entropy minus expected log-Jacobian
-        # For tanh squash, exact entropy is intractable; use the Normal entropy
-        # as an upper bound (the correction is always negative).
-        # This is standard practice (SAC, etc.)
-        return super().entropy()
-
-class OrbitalEyesGraphAttention(nn.Module):
-    """Graph-attention policy for orbital_eyes SSA sensor scheduling.
+class VISTA(nn.Module):
+    """VISTA policy for orbital_eyes SSA sensor scheduling.
 
     Observation layout (flat, from C env)
     ─────────────────────────────────────
@@ -162,16 +127,17 @@ class OrbitalEyesGraphAttention(nn.Module):
                  hidden_size=128, mask_actions=False,
                  **kwargs):
         super().__init__()
+        if action_mode != 0:
+            raise ValueError("VISTA only supports discrete action_mode=0")
         self.hidden_size = hidden_size
         self.action_mode = action_mode
-        self.is_continuous = (action_mode != 0)
+        self.is_continuous = False
         self.d_model = d_model
         self.rso_top_k = rso_top_k
         self.mask_actions = bool(mask_actions)
         self._action_mask = None
 
         self.num_other_agents = num_agents - 1
-        self.seq_len = 1 + self.num_other_agents + rso_top_k
 
         # ── encoders ──
         self.self_encoder = nn.Sequential(
@@ -195,30 +161,19 @@ class OrbitalEyesGraphAttention(nn.Module):
         self.proj = layer_init(nn.Linear(d_model, hidden_size))
 
         # ── actor / critic heads ──
-        if action_mode == 0:
-            # Pointer over K RSO tokens, optionally followed by hold/no-RSO.
-            num_actions = int(env.single_action_space.n)
-            if num_actions not in (rso_top_k, rso_top_k + 1):
-                raise ValueError(
-                    "OrbitalEyesGraphAttention expects K or K+1 discrete actions; "
-                    f"got {num_actions} for K={rso_top_k}"
-                )
-            self.has_noop_action = num_actions == rso_top_k + 1
-            self.pointer_query = nn.Linear(hidden_size, d_model)
-            self.pointer_key = nn.Linear(d_model, d_model)
-            if self.has_noop_action:
-                self.noop_head = layer_init(
-                    nn.Linear(hidden_size, 1), std=0.01)
-        else:
-            # Continuous: delta az, delta el — with tanh squashing
-            self.decoder_mean = layer_init(nn.Linear(hidden_size, 2), std=0.01)
-            # State-dependent log-std: allows exploration to vary based on context
-            self.decoder_logstd = nn.Sequential(
-                layer_init(nn.Linear(hidden_size, 2), std=0.01),
+        # Pointer over K RSO tokens, optionally followed by hold/no-RSO.
+        num_actions = int(env.single_action_space.n)
+        if num_actions not in (rso_top_k, rso_top_k + 1):
+            raise ValueError(
+                "VISTA expects K or K+1 discrete actions; "
+                f"got {num_actions} for K={rso_top_k}"
             )
-            # Bias initialization: std ≈ exp(-1) ≈ 0.37 for sensible initial exploration
-            with torch.no_grad():
-                self.decoder_logstd[0].bias.fill_(-1.0)
+        self.has_noop_action = num_actions == rso_top_k + 1
+        self.pointer_query = nn.Linear(hidden_size, d_model)
+        self.pointer_key = nn.Linear(d_model, d_model)
+        if self.has_noop_action:
+            self.noop_head = layer_init(
+                nn.Linear(hidden_size, 1), std=0.01)
 
         self.value = layer_init(nn.Linear(hidden_size, 1), std=1)
         self._rso_hidden = None
@@ -239,7 +194,7 @@ class OrbitalEyesGraphAttention(nn.Module):
         rso_obs = obs[:, idx:idx + self.rso_top_k * self.RSO_DIM]
         rso_obs = rso_obs.view(B, self.rso_top_k, self.RSO_DIM)
 
-        if self.action_mode == 0 and self.mask_actions:
+        if self.mask_actions:
             feasible = rso_obs[:, :, self.RSO_VISIBILITY_IDX] > 0.5
             if self.has_noop_action:
                 no_op = torch.ones(B, 1, dtype=torch.bool, device=device)
@@ -275,24 +230,16 @@ class OrbitalEyesGraphAttention(nn.Module):
         return out
 
     def decode_actions(self, hidden, state=None):
-        if self.action_mode == 0:
-            # Pointer-network: query from hidden, keys from RSO tokens
-            query = self.pointer_query(hidden).unsqueeze(1)       # (B,1,d)
-            keys = self.pointer_key(self._rso_hidden)             # (B,K,d)
-            logits = torch.bmm(query, keys.transpose(1, 2)).squeeze(1)  # (B,K)
-            logits = logits / (self.d_model ** 0.5)
-            if self.has_noop_action:
-                logits = torch.cat([logits, self.noop_head(hidden)], dim=1)
-            if self._action_mask is not None:
-                logits = logits.masked_fill(~self._action_mask, -1e9)
-            action = logits  # raw logits for PufferLib sample_logits
-        else:
-            mean = self.decoder_mean(hidden)
-            # State-dependent std, clamped to avoid collapse or explosion
-            logstd = self.decoder_logstd(hidden).clamp(-3.0, 0.5)
-            std = torch.exp(logstd)
-            # TanhNormal handles squashing + corrected log-prob
-            action = TanhNormal(mean, std)
+        # Pointer-network: query from hidden, keys from RSO tokens
+        query = self.pointer_query(hidden).unsqueeze(1)       # (B,1,d)
+        keys = self.pointer_key(self._rso_hidden)             # (B,K,d)
+        logits = torch.bmm(query, keys.transpose(1, 2)).squeeze(1)  # (B,K)
+        logits = logits / (self.d_model ** 0.5)
+        if self.has_noop_action:
+            logits = torch.cat([logits, self.noop_head(hidden)], dim=1)
+        if self._action_mask is not None:
+            logits = logits.masked_fill(~self._action_mask, -1e9)
+        action = logits  # raw logits for PufferLib sample_logits
 
         values = self.value(hidden)
         return action, values
