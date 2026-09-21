@@ -1,7 +1,6 @@
 """Small public interface around the environments and external PuffeRL."""
 import argparse
-import json
-from .config import ROOT, PRESETS, load
+from .config import PRESETS, load, phase_of
 
 
 def main(argv=None):
@@ -41,7 +40,7 @@ def main(argv=None):
                  device=args.device or 'cpu', deterministic=args.deterministic)
         return
     from .runtime import register
-    register()
+    register(phase_of(cfg))
     from pufferlib import pufferl
     cfg.update(wandb=args.wandb, wandb_project=args.wandb_project,
                max_runs=args.max_runs, load_model_path=args.checkpoint)

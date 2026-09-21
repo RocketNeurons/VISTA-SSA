@@ -26,9 +26,9 @@ single `vista` command on top of the public [PufferLib](https://github.com/Puffe
 | Preset | Scenario | Agents | Catalogue | Policy |
 |---|---|---|---|---|
 | `phase1_vista` | Phase I — single-sensor tasking | 1 | 30 RSOs | VISTA (attention + LSTM + pointer) |
-| `phase1_lstm` | Phase I — recurrent baseline | 1 | 30 RSOs | Flat LSTM |
+| `phase1_lstm` | Phase I — recurrent baseline | 1 | 30 RSOs | LSTM |
 | `phase2_vista` | Phase II — LEO constellation, large catalogue | 12 (3 orbits) | 2000 RSOs | VISTA |
-| `phase2_lstm` | Phase II — recurrent baseline | 12 (3 orbits) | 2000 RSOs | Flat LSTM |
+| `phase2_lstm` | Phase II — recurrent baseline | 12 (3 orbits) | 2000 RSOs | LSTM |
 | `phase3_vista` | Phase III — heterogeneous cooperative network | 4 (2 sensor types) | 240 RSOs | VISTA |
 
 Each preset is a frozen `configs/<preset>.ini` + `checkpoints/<preset>.pt` pair.
@@ -39,7 +39,8 @@ SHA-256 hashes and training-run provenance live in
 ## Installation
 
 Requirements: **Linux x86_64 or WSL2**, **Python 3.12**, a C compiler (`gcc`),
-and `git`. GPU is optional (evaluation runs fine on CPU; training is much
+and `git`. Keep the repository checkout available: presets and checkpoints
+are loaded from its `configs/` and `checkpoints/` directories. GPU is optional (evaluation runs fine on CPU; training is much
 faster on CUDA).
 
 ```bash
@@ -56,7 +57,7 @@ pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cu126
 #    CPU only:
 # pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cpu
 
-# 3. Fetch the pinned Raylib build dependency (~5 MB, checksummed)
+# 3. Fetch the pinned Raylib build dependency (SHA-256 verified before extraction)
 python scripts/fetch_build_dependencies.py
 
 # 4. Install VISTA (compiles the three native environments)
@@ -136,12 +137,14 @@ vista train phase1_vista --device cuda
 vista train phase2_vista --device cuda --checkpoint checkpoints/phase2_vista.pt
 
 # Hyperparameter sweep (Protein) — requires `wandb login`
-pip install ".[sweep]"
+pip install -e ".[sweep]"
 vista sweep phase1_vista --wandb --wandb-project vista --max-runs 20
 ```
 
-Training uses the exact `[train]` sections the paper policies were produced
-with. Anything can be overridden from the command line with `--set`:
+Training uses the `[train]` sections in the selected evaluation preset.
+Original training configurations and their provenance are preserved in
+[provenance/](provenance/) (see the [reproducibility notes](docs/REPRODUCIBILITY.md)). Override configuration
+values from the command line with `--set`:
 
 ```bash
 vista train phase2_vista --device cuda --set train.total_timesteps=50_000_000 --set train.learning_rate=0.001
@@ -170,7 +173,7 @@ The CSVs behind the paper figures are in [paper/data](paper/data), and the
 plotting scripts that generated the final figures are in [scripts](scripts):
 
 ```bash
-pip install ".[plots]"
+pip install -e ".[plots]"
 python scripts/plot_phase2_performance_scaling_composite.py
 python scripts/plot_phase3_observation_geometry_final.py
 ```
@@ -187,8 +190,27 @@ checkpoints/      Pretrained weights + manifest.json (SHA-256, provenance)
 provenance/       Original training-run INIs and source commit hashes
 paper/data/       CSV data behind the paper figures
 scripts/          Figure scripts + build-dependency fetcher
+tests/            Config, checkpoint, and evaluation regression tests
 docs/             Reproducibility notes
 licenses/         Third-party licenses (PufferLib MIT, Raylib zlib)
+```
+
+## Policy implementations
+
+All active presets use `policy_name = VISTA` or `policy_name = LSTM`, with
+`VISTARecurrent` or `LSTMRecurrent` as their recurrent wrapper. Both policies
+use an LSTM core; the comparison baseline is named **LSTM**. Phase I/II
+implementations live in `vista/vista_policy.py`; Phase III implementations
+live in `vista/cooperative_policy.py`. The runtime selects the module by phase.
+
+See the [reproducibility notes](docs/REPRODUCIBILITY.md) and
+[script guide](scripts/README.md).
+
+## Tests
+
+```bash
+pip install -e ".[dev]"
+python -m pytest
 ```
 
 ## License and citation

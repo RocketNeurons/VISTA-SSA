@@ -26,7 +26,7 @@ OUTPUT = (
 )
 
 METHODS = ("expected_info_gain", "lstm", "drl")
-LABEL = {"expected_info_gain": "EIG", "lstm": "Flat LSTM", "drl": "VISTA"}
+LABEL = {"expected_info_gain": "EIG", "lstm": "LSTM", "drl": "VISTA"}
 COLOR = {"expected_info_gain": "#4A4A4A", "lstm": "#303030", "drl": "#151515"}
 LINESTYLE = {
     "expected_info_gain": (0, (5.0, 1.5, 1.2, 1.5)),

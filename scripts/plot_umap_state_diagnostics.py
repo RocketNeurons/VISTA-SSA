@@ -1,4 +1,4 @@
-"""Replot Orbital Eyes UMAPs with physical state encoded continuously.
+"""Replot VISTA UMAPs with physical state encoded continuously.
 
 Scenario identity is carried by marker shape. A shared logarithmic colour
 scale carries mean catalogue uncertainty, which makes recovery state directly

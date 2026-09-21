@@ -27,3 +27,8 @@ wandb/
 .vscode/
 .idea/
 .DS_Store
+
+# Test and coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/

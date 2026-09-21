@@ -3461,7 +3461,7 @@ static inline Vector3 eci_to_rl(float ex, float ey, float ez) {
 void c_render(OrbitalEyesCooperative* env) {
     if (!env->client) {
         SetConfigFlags(FLAG_MSAA_4X_HINT);
-        InitWindow(1920, 1080, "Orbital Eyes — SSA Sensor Scheduling");
+        InitWindow(1920, 1080, "VISTA — SSA Sensor Scheduling");
         if (env->render_fps <= 0) env->render_fps = 60;
         SetTargetFPS(env->render_fps);
         env->client = (Client*)calloc(1, sizeof(Client));

@@ -5,8 +5,8 @@ from torch import nn
 import pufferlib.models
 from pufferlib.pytorch import layer_init
 
-class OrbitalEyesFlatRecurrent(pufferlib.models.LSTMWrapper):
-    """Recurrent wrapper whose dimensions follow OrbitalEyesFlatPolicy.
+class LSTMRecurrent(pufferlib.models.LSTMWrapper):
+    """Recurrent wrapper whose dimensions follow LSTM.
 
     Set [rnn] input_size and hidden_size to auto in the INI. Then
     policy.hidden_size is the single width control for the flat encoder,
@@ -19,14 +19,14 @@ class OrbitalEyesFlatRecurrent(pufferlib.models.LSTMWrapper):
 
         if input_size != policy_size or hidden_size != policy_size:
             raise ValueError(
-                "OrbitalEyesFlatRecurrent requires rnn.input_size and "
+                "LSTMRecurrent requires rnn.input_size and "
                 "rnn.hidden_size to match policy.hidden_size; use auto "
                 "for both in the INI."
             )
         super().__init__(env, policy, input_size, hidden_size)
 
-class OrbitalEyesFlatPolicy(nn.Module):
-    """Flat fixed-slot policy for the single-sensor LSTM baseline."""
+class LSTM(nn.Module):
+    """Fixed-slot encoder and heads for the Phase I/II LSTM baseline."""
 
     SELF_DIM = 12
     AGENT_DIM = 7
@@ -37,7 +37,7 @@ class OrbitalEyesFlatPolicy(nn.Module):
                  action_mode=0, mask_actions=True, **kwargs):
         super().__init__()
         if action_mode != 0:
-            raise ValueError("OrbitalEyesFlatPolicy only supports discrete action_mode=0")
+            raise ValueError("LSTM only supports discrete action_mode=0")
 
         self.hidden_size = hidden_size
         self.is_continuous = False
@@ -90,14 +90,14 @@ class OrbitalEyesFlatPolicy(nn.Module):
         values = self.value(hidden)
         return logits, values
 
-class VISTALSTM(pufferlib.models.LSTMWrapper):
+class VISTARecurrent(pufferlib.models.LSTMWrapper):
     """LSTMWrapper around VISTA.
     input_size must match the inner policy's hidden_size."""
     def __init__(self, env, policy, input_size=128, hidden_size=128):
         super().__init__(env, policy, input_size, hidden_size)
 
 class VISTA(nn.Module):
-    """VISTA policy for orbital_eyes SSA sensor scheduling.
+    """VISTA policy for Phase I/II SSA sensor scheduling.
 
     Observation layout (flat, from C env)
     ─────────────────────────────────────

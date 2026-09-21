@@ -1,4 +1,4 @@
-"""Policies for the heterogeneous fixed-ground Orbital Eyes scenario."""
+"""VISTA and LSTM policies for the heterogeneous Phase III scenario."""
 
 import numpy as np
 import torch
@@ -8,7 +8,7 @@ import pufferlib.models
 from pufferlib.pytorch import layer_init
 
 
-class OrbitalEyesCooperativeAttentionRecurrent(pufferlib.models.LSTMWrapper):
+class VISTARecurrent(pufferlib.models.LSTMWrapper):
     """Recurrent core for the modality-aware entity policy."""
 
     def __init__(self, env, policy, input_size="auto", hidden_size="auto", **kwargs):
@@ -23,7 +23,7 @@ class OrbitalEyesCooperativeAttentionRecurrent(pufferlib.models.LSTMWrapper):
         super().__init__(env, policy, input_size, hidden_size)
 
 
-class OrbitalEyesCooperativeFlatRecurrent(pufferlib.models.LSTMWrapper):
+class LSTMRecurrent(pufferlib.models.LSTMWrapper):
     """Recurrent core for the flat multi-sensor baseline."""
 
     def __init__(self, env, policy, input_size="auto", hidden_size="auto", **kwargs):
@@ -75,7 +75,7 @@ class _MaskedCandidatePolicy(nn.Module):
         self._action_mask = torch.cat([feasible, hold], dim=1)
 
 
-class OrbitalEyesCooperativeAttentionPolicy(_MaskedCandidatePolicy):
+class VISTA(_MaskedCandidatePolicy):
     """Entity policy with independent role and sensor-modality embeddings.
 
     Observation layout:
@@ -106,7 +106,7 @@ class OrbitalEyesCooperativeAttentionPolicy(_MaskedCandidatePolicy):
         super().__init__()
         if action_mode != 0:
             raise ValueError(
-                "OrbitalEyesCooperativeAttentionPolicy requires discrete actions"
+                "VISTA requires discrete actions"
             )
         if d_model % nhead:
             raise ValueError("d_model must be divisible by nhead")
@@ -224,7 +224,7 @@ class OrbitalEyesCooperativeAttentionPolicy(_MaskedCandidatePolicy):
         return logits, self.value(hidden)
 
 
-class OrbitalEyesCooperativeFlatPolicy(_MaskedCandidatePolicy):
+class LSTM(_MaskedCandidatePolicy):
     """Flat MLP encoder plus LSTM baseline using the same information and mask."""
 
     def __init__(
@@ -240,7 +240,7 @@ class OrbitalEyesCooperativeFlatPolicy(_MaskedCandidatePolicy):
         super().__init__()
         if action_mode != 0:
             raise ValueError(
-                "OrbitalEyesCooperativeFlatPolicy requires discrete actions"
+                "LSTM requires discrete actions"
             )
         if int(env.single_action_space.n) != rso_top_k + 1:
             raise ValueError("Action space must contain K candidates plus hold")

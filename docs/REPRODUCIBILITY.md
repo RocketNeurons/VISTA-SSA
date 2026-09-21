@@ -44,3 +44,18 @@ CPU/GPU and hardware generations.
 environments (C sources compiled at install time against the pinned Raylib
 5.5 release fetched by `scripts/fetch_build_dependencies.py`). They do not
 track the upstream development repository.
+
+## Policy implementations
+
+| Scenario | Policy module | Policy classes | Recurrent wrappers |
+|---|---|---|---|
+| Phase I/II | `vista.vista_policy` | `VISTA`, `LSTM` | `VISTARecurrent`, `LSTMRecurrent` |
+| Phase III | `vista.cooperative_policy` | `VISTA`, `LSTM` | `VISTARecurrent`, `LSTMRecurrent` |
+
+The CLI selects the implementation from the phase prefix in `env_name`.
+Checkpoints contain tensor state dictionaries and are loaded with strict
+parameter-name and shape validation.
+
+Source-run names in `provenance/` and checkpoint metadata identify the original
+training artifacts. Paper datasets use `pointer_lstm` and `drl` for VISTA,
+and `flat_lstm` or `lstm` for the LSTM baseline. Figure legends use VISTA and LSTM.
