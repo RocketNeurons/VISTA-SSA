@@ -547,6 +547,31 @@ static PyObject* vec_render(PyObject* self, PyObject* args) {
     Py_RETURN_NONE;
 }
 
+static PyObject* vec_render_rgb(PyObject* self, PyObject* args) {
+    PyObject* handle;
+    int env_id;
+    if (!PyArg_ParseTuple(args, "Oi", &handle, &env_id)) return NULL;
+    VecEnv* vec = unpack_vecenv(args);
+    if (!vec) return NULL;
+    if (env_id < 0 || env_id >= vec->num_envs) {
+        PyErr_SetString(PyExc_IndexError, "env_id is outside the vector");
+        return NULL;
+    }
+    c_render(vec->envs[env_id]);
+    Image frame = LoadImageFromScreen();
+    if (!frame.data) {
+        PyErr_SetString(PyExc_RuntimeError, "Could not capture the render framebuffer");
+        return NULL;
+    }
+    ImageFormat(&frame, PIXELFORMAT_UNCOMPRESSED_R8G8B8);
+    npy_intp shape[] = {frame.height, frame.width, 3};
+    PyObject* array = PyArray_SimpleNew(3, shape, NPY_UINT8);
+    if (array) memcpy(PyArray_DATA((PyArrayObject*)array), frame.data,
+                      (size_t)frame.height * frame.width * 3);
+    UnloadImage(frame);
+    return array;
+}
+
 static int assign_to_dict(PyObject* dict, char* key, float value) {
     PyObject* v = PyFloat_FromDouble(value);
     if (v == NULL) {
@@ -655,6 +680,7 @@ static PyMethodDef methods[] = {
     {"vec_step", vec_step, METH_VARARGS, "Step the vector of environments"},
     {"vec_log", vec_log, METH_VARARGS, "Log the vector of environments"},
     {"vec_render", vec_render, METH_VARARGS, "Render the vector of environments"},
+    {"vec_render_rgb", vec_render_rgb, METH_VARARGS, "Render an environment as an RGB uint8 array"},
     {"vec_close", vec_close, METH_VARARGS, "Close the vector of environments"},
     {"shared", (PyCFunction)my_shared, METH_VARARGS | METH_KEYWORDS, "Shared state"},
     MY_METHODS,

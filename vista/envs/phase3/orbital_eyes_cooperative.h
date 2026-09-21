@@ -538,11 +538,17 @@ typedef struct {
 } Log;
 
 // ─── Rendering client ───
+#define OE_UHIST_LEN 8192
 typedef struct {
     Camera3D camera;
     float cam_yaw;
     float cam_pitch;
     float cam_dist;
+    float u_hist[OE_UHIST_LEN];
+    int u_tick[OE_UHIST_LEN];
+    int u_hist_head;
+    int u_hist_len;
+    int last_tick;
 } Client;
 
 // ─── Main environment struct ───
@@ -1994,6 +2000,19 @@ static void sample_common_dome_orbit_plane(
     }
 }
 
+static void record_render_uncertainty(OrbitalEyesCooperative* env) {
+    Client* cl = env->client;
+    if (!cl || env->tick == cl->last_tick) return;
+    if (env->tick < cl->last_tick) { cl->u_hist_len = 0; cl->u_hist_head = 0; }
+    float sum = 0.0f;
+    for (int i = 0; i < env->num_rso; i++) sum += surrogate_u_sum_now(&env->rsos[i], env);
+    cl->u_hist[cl->u_hist_head] = sum / (float)env->num_rso;
+    cl->u_tick[cl->u_hist_head] = env->tick;
+    cl->u_hist_head = (cl->u_hist_head + 1) % OE_UHIST_LEN;
+    if (cl->u_hist_len < OE_UHIST_LEN) cl->u_hist_len++;
+    cl->last_tick = env->tick;
+}
+
 void c_reset(OrbitalEyesCooperative* env) {
     env->tick = 0;
     env->epoch_time = 0.0f;
@@ -2234,6 +2253,13 @@ void c_reset(OrbitalEyesCooperative* env) {
     }
     env->badness_prev = env->badness_initial;
     if (env->badness_initial < 1e-6f) env->badness_initial = 1.0f;
+
+    if (env->client) {
+        env->client->last_tick = -1;
+        env->client->u_hist_len = 0;
+        env->client->u_hist_head = 0;
+    }
+    record_render_uncertainty(env);
 
     // Build initial observations
     compute_observations(env);
@@ -3382,6 +3408,8 @@ void c_step(OrbitalEyesCooperative* env) {
         return;  // observations already rebuilt by c_reset
     }
 
+    record_render_uncertainty(env);
+
     // ── 7. Build observations ──
     PROF_START(build_obs);
     compute_observations(env);
@@ -3460,11 +3488,14 @@ static inline Vector3 eci_to_rl(float ex, float ey, float ez) {
 
 void c_render(OrbitalEyesCooperative* env) {
     if (!env->client) {
-        SetConfigFlags(FLAG_MSAA_4X_HINT);
+        unsigned int flags = FLAG_MSAA_4X_HINT;
+        if (getenv("VISTA_RENDER_HIDDEN")) flags |= FLAG_WINDOW_HIDDEN;
+        SetConfigFlags(flags);
         InitWindow(1920, 1080, "VISTA — SSA Sensor Scheduling");
         if (env->render_fps <= 0) env->render_fps = 60;
         SetTargetFPS(env->render_fps);
         env->client = (Client*)calloc(1, sizeof(Client));
+        env->client->last_tick = -1;
         env->client->cam_yaw   = 45.0f;
         env->client->cam_pitch = 25.0f;
         env->client->cam_dist  = 3.5f;  // ~3.5 Earth radii from center
@@ -3519,10 +3550,29 @@ void c_render(OrbitalEyesCooperative* env) {
     cl->camera.position.z = cl->camera.target.z + cl->cam_dist * cosf(pitch_rad) * cosf(yaw_rad);
     cl->camera.position.y = cl->camera.target.y + cl->cam_dist * sinf(pitch_rad);
 
+    // Render-only sideways offset: shift the whole view so the orbit pivot
+    // projects at ~65% of screen width, clearing the left HUD column.
+    Camera3D view = cl->camera;
+    {
+        float fx = view.target.x - view.position.x;
+        float fy = view.target.y - view.position.y;
+        float fz = view.target.z - view.position.z;
+        float rx, ry, rz;
+        vec3_cross(fx, fy, fz, 0.0f, 1.0f, 0.0f, &rx, &ry, &rz);
+        float rl = vec3_len(rx, ry, rz);
+        if (rl > 1e-6f) {
+            float aspect = (float)GetScreenWidth() / (float)GetScreenHeight();
+            float s = 0.15f * 2.0f * tanf(view.fovy * 0.5f * DEG2RAD) * aspect * cl->cam_dist;
+            rx /= rl; ry /= rl; rz /= rl;
+            view.position.x -= rx * s; view.position.y -= ry * s; view.position.z -= rz * s;
+            view.target.x   -= rx * s; view.target.y   -= ry * s; view.target.z   -= rz * s;
+        }
+    }
+
     BeginDrawing();
     ClearBackground((Color){4, 6, 14, 255});
 
-    BeginMode3D(cl->camera);
+    BeginMode3D(view);
 
     // ── Earth: wireframe globe (radius = 1.0 in diorama units) ──
     DrawSphereWires((Vector3){0, 0, 0}, 1.0f, 24, 24, (Color){20, 60, 130, 200});
@@ -3666,14 +3716,13 @@ void c_render(OrbitalEyesCooperative* env) {
 
     EndMode3D();
 
-    // ── HUD ──
-    int hx = 10, hy = 10;
-    DrawRectangle(hx, hy, 420, 290, (Color){0, 0, 0, 170});
+    // ── HUD ── left 30% column: stats (top half) + U(t) (bottom half)
+    int sw = GetScreenWidth(), sh = GetScreenHeight();
     Color txt = {200, 220, 240, 255};
+    Color panel_bg   = {0, 0, 0, 170};
+    Color panel_edge = {0, 255, 200, 60};
+    Color label_col  = {140, 160, 180, 220};
     char buf[256];
-
-    snprintf(buf, sizeof(buf), "Step: %d / %d", env->tick, env->max_steps);
-    DrawText(buf, hx+10, hy+10, 20, txt);
 
     float mean_U = 0.0f, max_U = 0.0f;
     int above_thresh = 0, total_obs = 0, total_visible = 0;
@@ -3688,49 +3737,118 @@ void c_render(OrbitalEyesCooperative* env) {
     mean_U /= (float)env->num_rso;
     float frac_above = (float)above_thresh / (float)env->num_rso;
 
-    snprintf(buf, sizeof(buf), "Agents: %d   RSOs: %d   Top-K: %d   Orbits: %d",
-             env->num_agents, env->num_rso, env->rso_top_k, env->num_orbits);
-    DrawText(buf, hx+10, hy+38, 16, (Color){0, 255, 200, 255});
+    int m = 16;                         // outer margin
+    int col_w = (int)(0.30f * sw);      // HUD column width
+    int pw_panel = col_w - 2 * m;
 
-    snprintf(buf, sizeof(buf), "Mean Uncertainty: %.3f", mean_U);
-    DrawText(buf, hx+10, hy+62, 16, (Color){100, 220, 255, 255});
+    // ── Top-left half: mission stats ──
+    {
+        int hx = m, hy = m, hh = sh / 2 - 2 * m;
+        DrawRectangle(hx, hy, pw_panel, hh, panel_bg);
+        DrawRectangleLines(hx, hy, pw_panel, hh, panel_edge);
+        int x = hx + 22, y = hy + 20, row = 44;
 
-    snprintf(buf, sizeof(buf), "Max  Uncertainty: %.3f", max_U);
-    DrawText(buf, hx+10, hy+82, 16, (Color){100, 220, 255, 255});
+        DrawText("MISSION", x, y, 26, label_col); y += row;
 
-    snprintf(buf, sizeof(buf), "Above threshold: %d / %d (%.0f%%)",
-             above_thresh, env->num_rso, frac_above * 100.0f);
-    DrawText(buf, hx+10, hy+104, 16,
-             frac_above > 0.5f ? (Color){255, 80, 180, 255} : (Color){0, 255, 180, 255});
+        snprintf(buf, sizeof(buf), "Ground sensors  %d", env->num_agents);
+        DrawText(buf, x, y, 26, (Color){0, 255, 200, 255}); y += row;
+        snprintf(buf, sizeof(buf), "RSOs  %d    Top-K  %d", env->num_rso, env->rso_top_k);
+        DrawText(buf, x, y, 26, (Color){0, 255, 200, 255}); y += row + 10;
 
-    snprintf(buf, sizeof(buf), "Currently observed: %d RSOs", total_obs);
-    DrawText(buf, hx+10, hy+124, 16, (Color){255, 160, 0, 255});
+        snprintf(buf, sizeof(buf), "Mean U      %.2f km", mean_U);
+        DrawText(buf, x, y, 26, (Color){100, 220, 255, 255}); y += row;
+        snprintf(buf, sizeof(buf), "Max U       %.2f km", max_U);
+        DrawText(buf, x, y, 26, (Color){100, 220, 255, 255}); y += row;
+        snprintf(buf, sizeof(buf), "Above thr.  %d  (%.0f%%)", above_thresh, frac_above * 100.0f);
+        DrawText(buf, x, y, 26,
+                 frac_above > 0.5f ? (Color){255, 80, 180, 255} : (Color){0, 255, 180, 255}); y += row;
+        snprintf(buf, sizeof(buf), "Observed    %d RSOs", total_obs);
+        DrawText(buf, x, y, 26, (Color){255, 160, 0, 255}); y += row;
+        snprintf(buf, sizeof(buf), "Visible     %d / %d", total_visible, env->num_rso);
+        DrawText(buf, x, y, 26, (Color){0, 255, 80, 255}); y += row + 10;
 
-    snprintf(buf, sizeof(buf), "Visible to >= 1 sat: %d / %d   Masked: %d",
-             total_visible, env->num_rso, env->num_rso - total_visible);
-    DrawText(buf, hx+10, hy+146, 16, (Color){0, 255, 80, 255});
+        // Legend
+        DrawRectangle(x, y + 4, 18, 18, (Color){0, 255, 220, 255});
+        DrawText("Low U", x + 26, y, 22, label_col);
+        DrawRectangle(x + 150, y + 4, 18, 18, (Color){255, 0, 180, 255});
+        DrawText("High U", x + 176, y, 22, label_col);
+        DrawRectangle(x + 310, y + 4, 18, 18, (Color){255, 160, 0, 255});
+        DrawText("Observed", x + 336, y, 22, label_col); y += row;
 
-    snprintf(buf, sizeof(buf), "Propagation: %s",
-             env->propagation_mode >= 1 ? "Keplerian+J2" : "Keplerian");
-    DrawText(buf, hx+10, hy+172, 14, (Color){140, 140, 160, 200});
+        snprintf(buf, sizeof(buf), "Propagation  %s",
+                 env->propagation_mode >= 1 ? "Keplerian + J2" : "Keplerian");
+        DrawText(buf, x, y, 20, (Color){140, 140, 160, 200});
+        DrawText("RMB orbit | Scroll zoom | WASD pan | ESC quit",
+                 x, hy + hh - 34, 18, (Color){100, 100, 120, 180});
+    }
 
-    // Legend
-    DrawRectangle(hx+10, hy+194, 10, 10, (Color){0, 255, 220, 255});
-    DrawText("Low uncert.", hx+24, hy+193, 12, (Color){160, 180, 200, 200});
-    DrawRectangle(hx+120, hy+194, 10, 10, (Color){255, 0, 180, 255});
-    DrawText("High uncert.", hx+134, hy+193, 12, (Color){160, 180, 200, 200});
-    DrawRectangle(hx+240, hy+194, 10, 10, (Color){0, 255, 80, 255});
-    DrawText("Visible", hx+254, hy+193, 12, (Color){160, 180, 200, 200});
-    DrawRectangle(hx+310, hy+194, 10, 10, (Color){60, 60, 80, 255});
-    DrawText("Masked", hx+324, hy+193, 12, (Color){160, 180, 200, 200});
-    DrawRectangle(hx+10, hy+210, 10, 10, (Color){255, 160, 0, 255});
-    DrawText("Observed", hx+24, hy+209, 12, (Color){160, 180, 200, 200});
+    // ── Bottom-left half: U(t) evolution ──
+    record_render_uncertainty(env);
+    if (cl->u_hist_len >= 1) {
+        int gx = m, gy = sh / 2 + m, gh = sh / 2 - 2 * m;
+        DrawRectangle(gx, gy, pw_panel, gh, panel_bg);
+        DrawRectangleLines(gx, gy, pw_panel, gh, panel_edge);
+        DrawText("MEAN UNCERTAINTY  U(t)", gx + 22, gy + 18, 26, label_col);
+        snprintf(buf, sizeof(buf), "%.2f km", mean_U);
+        DrawText(buf, gx + pw_panel - 22 - MeasureText(buf, 40), gy + 54, 40,
+                 (Color){100, 220, 255, 255});
 
-    DrawText("Outer ring = uncertainty | Inner = visibility | Orange = observed",
-             hx+10, hy+228, 11, (Color){120, 120, 140, 180});
+        float u_max = env->uncertainty_threshold;
+        for (int k = 0; k < cl->u_hist_len; k++) {
+            int idx = (cl->u_hist_head - cl->u_hist_len + k + OE_UHIST_LEN) % OE_UHIST_LEN;
+            if (cl->u_hist[idx] > u_max) u_max = cl->u_hist[idx];
+        }
+        int px = gx + 22, py = gy + 110, pw = pw_panel - 44, ph = gh - 160;
+        int first = (cl->u_hist_head - cl->u_hist_len + OE_UHIST_LEN) % OE_UHIST_LEN;
+        int start_tick = cl->u_tick[first];
+        int span = env->max_steps - start_tick;
+        if (span < 1) span = 1;
+        u_max = fmaxf(u_max, 1e-6f);
+        // Plot frame + threshold reference
+        DrawRectangleLines(px, py, pw, ph, (Color){60, 80, 100, 120});
+        int ty = py + ph - (int)((env->uncertainty_threshold / u_max) * (float)ph);
+        DrawLine(px, ty, px + pw, ty, (Color){255, 0, 180, 110});
+        DrawText("threshold", px + pw - MeasureText("threshold", 20) - 6,
+                 ty - 26 > py ? ty - 26 : ty + 6, 20, (Color){255, 0, 180, 160});
+        // History polyline, colored by level vs threshold
+        int prev_x = 0, prev_y = 0;
+        for (int k = 0; k < cl->u_hist_len; k++) {
+            int idx = (cl->u_hist_head - cl->u_hist_len + k + OE_UHIST_LEN) % OE_UHIST_LEN;
+            float v = cl->u_hist[idx];
+            int x = px + (int)((float)(cl->u_tick[idx] - start_tick) / (float)span * (float)pw);
+            int y = py + ph - (int)(clampf(v / u_max, 0.0f, 1.0f) * (float)ph);
+            if (k > 0) {
+                Color lc = (v > env->uncertainty_threshold)
+                    ? (Color){255, 60, 200, 255} : (Color){0, 255, 200, 255};
+                DrawLine(prev_x, prev_y, x, y, lc);
+                DrawLine(prev_x, prev_y + 1, x, y + 1, lc);  // 2px for readability
+            }
+            prev_x = x; prev_y = y;
+        }
+        // Axis extremes
+        snprintf(buf, sizeof(buf), "%.0f km", u_max);
+        DrawText(buf, px + 6, py + 6, 20, label_col);
+        DrawText("0", px + 6, py + ph - 26, 20, label_col);
+        snprintf(buf, sizeof(buf), "%g min", start_tick * env->dt / 60.0f);
+        DrawText(buf, px, py + ph + 10, 18, label_col);
+        int tmin = (int)(env->max_steps * env->dt) / 60;
+        snprintf(buf, sizeof(buf), "t = %d min", tmin);
+        DrawText(buf, px + pw - MeasureText(buf, 20) - 6, py + ph - 26, 20, label_col);
+    }
 
-    DrawText("RMB drag: orbit | Scroll: zoom | WASD: pan | Arrows: tilt | ESC: quit",
-             hx+10, hy+246, 13, (Color){100, 100, 120, 180});
+    // ── Top-right: step + sim clock ──
+    {
+        int tsec = (int)env->epoch_time;
+        int days = tsec / 86400, hrs = (tsec / 3600) % 24;
+        int mins = (tsec / 60) % 60, secs = tsec % 60;
+        int cw = 460, ch = 116, cx = sw - cw - m, cy = m;
+        DrawRectangle(cx, cy, cw, ch, panel_bg);
+        DrawRectangleLines(cx, cy, cw, ch, panel_edge);
+        snprintf(buf, sizeof(buf), "STEP  %d / %d", env->tick, env->max_steps);
+        DrawText(buf, cx + cw - 22 - MeasureText(buf, 26), cy + 16, 26, txt);
+        snprintf(buf, sizeof(buf), "T+ %dd %02d:%02d:%02d", days, hrs, mins, secs);
+        DrawText(buf, cx + cw - 22 - MeasureText(buf, 36), cy + 58, 36, (Color){0, 255, 200, 255});
+    }
 
     EndDrawing();
 }

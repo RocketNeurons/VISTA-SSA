@@ -8,7 +8,7 @@ correspondence and accommodate changing candidate and teammate counts. All
 agents jointly optimize the same distributed policy under a catalogue-level
 objective, then execute it from their own local observations.
 
-![VISTA render — Phase II scaled to 48 sensors tasking a 20,000-object catalogue, then the Phase III heterogeneous cooperative network](assets/vista_showcase.gif)
+![VISTA render — Phase II scaled to 48 sensors tasking a 20,000-object catalogue, as catalogue uncertainty falls through the end of the episode, then the Phase III heterogeneous cooperative network](assets/vista_showcase.gif)
 
 This repository contains the three paper scenarios (Phase I–III) as native C
 environments, frozen pretrained checkpoints, classical scheduling baselines,

@@ -496,7 +496,7 @@ typedef struct {
 
 // ─── Rendering client ───
 #define OE_NUM_STARS 512
-#define OE_UHIST_LEN 2048
+#define OE_UHIST_LEN 8192
 typedef struct {
     Camera3D camera;
     float cam_yaw;
@@ -507,6 +507,7 @@ typedef struct {
     unsigned char star_b[OE_NUM_STARS];
     // Mean-uncertainty history ring buffer for the HUD sparkline
     float u_hist[OE_UHIST_LEN];
+    int u_tick[OE_UHIST_LEN];
     int u_hist_head;
     int u_hist_len;
     int last_tick;
@@ -1445,6 +1446,19 @@ static void compute_observations(OrbitalEyes* env);
 static void set_was_my_target(OrbitalEyes* env);
 
 // ─── Reset ───
+static void record_render_uncertainty(OrbitalEyes* env) {
+    Client* cl = env->client;
+    if (!cl || env->tick == cl->last_tick) return;
+    if (env->tick < cl->last_tick) { cl->u_hist_len = 0; cl->u_hist_head = 0; }
+    float sum = 0.0f;
+    for (int i = 0; i < env->num_rso; i++) sum += surrogate_u_sum_now(&env->rsos[i], env);
+    cl->u_hist[cl->u_hist_head] = sum / (float)env->num_rso;
+    cl->u_tick[cl->u_hist_head] = env->tick;
+    cl->u_hist_head = (cl->u_hist_head + 1) % OE_UHIST_LEN;
+    if (cl->u_hist_len < OE_UHIST_LEN) cl->u_hist_len++;
+    cl->last_tick = env->tick;
+}
+
 void c_reset(OrbitalEyes* env) {
     env->tick = 0;
     env->epoch_time = 0.0f;
@@ -1634,6 +1648,13 @@ void c_reset(OrbitalEyes* env) {
         env->U_ref = sum_U_init / (float)env->num_rso;
     }
     if (env->U_ref < 1e-6f) env->U_ref = 1.0f;  // safety
+
+    if (env->client) {
+        env->client->last_tick = -1;
+        env->client->u_hist_len = 0;
+        env->client->u_hist_head = 0;
+    }
+    record_render_uncertainty(env);
 
     // Build initial observations
     compute_observations(env);
@@ -2439,6 +2460,8 @@ void c_step(OrbitalEyes* env) {
         return;  // observations already rebuilt by c_reset
     }
 
+    record_render_uncertainty(env);
+
     // ── 7. Build observations ──
     PROF_START(build_obs);
     compute_observations(env);
@@ -2572,7 +2595,9 @@ static void draw_orbit_ring(float a, float e, float raan, float omega,
 // ─── Render ───
 void c_render(OrbitalEyes* env) {
     if (!env->client) {
-        SetConfigFlags(FLAG_MSAA_4X_HINT);
+        unsigned int flags = FLAG_MSAA_4X_HINT;
+        if (getenv("VISTA_RENDER_HIDDEN")) flags |= FLAG_WINDOW_HIDDEN;
+        SetConfigFlags(flags);
         InitWindow(1920, 1080, "VISTA — SSA Sensor Scheduling");
         if (env->render_fps <= 0) env->render_fps = 60;
         SetTargetFPS(env->render_fps);
@@ -3048,15 +3073,8 @@ void c_render(OrbitalEyes* env) {
     }
 
     // ── Bottom-left half: U(t) evolution ──
-    // Record one sample per env step (render may run more often than step)
-    if (env->tick != cl->last_tick) {
-        cl->last_tick = env->tick;
-        if (env->tick == 0) { cl->u_hist_len = 0; cl->u_hist_head = 0; }
-        cl->u_hist[cl->u_hist_head] = mean_U;
-        cl->u_hist_head = (cl->u_hist_head + 1) % OE_UHIST_LEN;
-        if (cl->u_hist_len < OE_UHIST_LEN) cl->u_hist_len++;
-    }
-    if (cl->u_hist_len >= 2) {
+    record_render_uncertainty(env);
+    if (cl->u_hist_len >= 1) {
         int gx = m, gy = sh / 2 + m, gh = sh / 2 - 2 * m;
         DrawRectangle(gx, gy, pw_panel, gh, panel_bg);
         DrawRectangleLines(gx, gy, pw_panel, gh, panel_edge);
@@ -3071,10 +3089,11 @@ void c_render(OrbitalEyes* env) {
             if (cl->u_hist[idx] > u_max) u_max = cl->u_hist[idx];
         }
         int px = gx + 22, py = gy + 110, pw = pw_panel - 44, ph = gh - 160;
-        // Scale history over the episode length so the curve fills as time passes
-        int span = env->max_steps > 0 ? env->max_steps : OE_UHIST_LEN;
-        if (span > OE_UHIST_LEN) span = OE_UHIST_LEN;
-        if (span < cl->u_hist_len) span = cl->u_hist_len;
+        int first = (cl->u_hist_head - cl->u_hist_len + OE_UHIST_LEN) % OE_UHIST_LEN;
+        int start_tick = cl->u_tick[first];
+        int span = env->max_steps - start_tick;
+        if (span < 1) span = 1;
+        u_max = fmaxf(u_max, 1e-6f);
         // Plot frame + threshold reference
         DrawRectangleLines(px, py, pw, ph, (Color){60, 80, 100, 120});
         int ty = py + ph - (int)((env->uncertainty_threshold / u_max) * (float)ph);
@@ -3086,7 +3105,7 @@ void c_render(OrbitalEyes* env) {
         for (int k = 0; k < cl->u_hist_len; k++) {
             int idx = (cl->u_hist_head - cl->u_hist_len + k + OE_UHIST_LEN) % OE_UHIST_LEN;
             float v = cl->u_hist[idx];
-            int x = px + (int)((float)k / (float)(span - 1) * (float)pw);
+            int x = px + (int)((float)(cl->u_tick[idx] - start_tick) / (float)span * (float)pw);
             int y = py + ph - (int)(clampf(v / u_max, 0.0f, 1.0f) * (float)ph);
             if (k > 0) {
                 Color lc = (v > env->uncertainty_threshold)
@@ -3100,6 +3119,8 @@ void c_render(OrbitalEyes* env) {
         snprintf(buf, sizeof(buf), "%.0f km", u_max);
         DrawText(buf, px + 6, py + 6, 20, label_col);
         DrawText("0", px + 6, py + ph - 26, 20, label_col);
+        snprintf(buf, sizeof(buf), "%g min", start_tick * env->dt / 60.0f);
+        DrawText(buf, px, py + ph + 10, 18, label_col);
         int tmin = (int)(env->max_steps * env->dt) / 60;
         snprintf(buf, sizeof(buf), "t = %d min", tmin);
         DrawText(buf, px + pw - MeasureText(buf, 20) - 6, py + ph - 26, 20, label_col);

@@ -14,6 +14,8 @@ if not (RAYLIB / 'lib/libraylib.a').exists():
 
 setup(ext_modules=[Extension(
     f'vista.envs.{phase}.binding', [f'vista/envs/{phase}/binding.c'],
+    depends=[str(path.relative_to(ROOT)) for path in (ROOT / 'vista/envs').glob('*.h')]
+            + [str(path.relative_to(ROOT)) for path in (ROOT / f'vista/envs/{phase}').glob('*.h')],
     include_dirs=[numpy.get_include(), str(RAYLIB / 'include')],
     extra_objects=[str(RAYLIB / 'lib/libraylib.a')],
     libraries=['m', 'dl', 'pthread'],
